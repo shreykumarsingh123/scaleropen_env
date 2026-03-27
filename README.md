@@ -11,9 +11,9 @@ Operating within an OpenEnv reinforcement learning loop, this agent looks at the
 3. **Reward:** The environment executes the injected code. If the model's RMSE or Accuracy improves beyond the baseline, the agent receives a reward.
 
 ## 🗂️ The 3 Tasks (Curriculum)
-* **Task 1 (Easy):** The Scaling Failure (KNN scale mismatch)
-* **Task 2 (Medium):** The Attrition Trap (Unencoded categoricals & NaNs)
-* **Task 3 (Hard):** The Skewed Forecasting Nightmare (Log transforms for heavy skew)
+* **Task 1:** The Scaling Failure (KNN scale mismatch)
+* **Task 2:** The Attrition Trap (Unencoded categoricals & NaNs)
+* **Task 3:** The Skewed Forecasting Nightmare (Log transforms for heavy skew)
 
 ## 💻 Tech Stack
 * **Core Logic:** Python, Pandas, NumPy, Scikit-learn
