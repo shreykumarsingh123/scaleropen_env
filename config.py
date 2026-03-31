@@ -16,6 +16,9 @@ class GlobalConfig:
     """
     skew_threshold: float = 3.0       # |skew| above this → flagged as high skewness
     scale_ratio: float = 1000.0       # column range ratio above this → flagged as scale mismatch
+    imbalance_threshold: float = 0.15 # minority class ratio below this → flagged as imbalanced
+    outlier_iqr_factor: float = 3.0   # IQR multiplier for outlier fences (higher = less sensitive)
+    outlier_min_count: int = 1        # minimum number of outliers to report a column
 
 
 @dataclass
