@@ -1,0 +1,86 @@
+
+============================================================
+  Section 1 -- Dataset Info
+============================================================
+  Shape          : (1500, 23)
+  Target column  : salary
+  Null columns   : 4
+    training_hours................   120  (8.0%)
+    distance_from_office..........    75  (5.0%)
+    satisfaction_score............    90  (6.0%)
+    last_promotion_years..........   150  (10.0%)
+  Wrong dtype cols: None
+  Target skewness : 3.48
+
+============================================================
+  Section 2 -- Pipeline Execution
+============================================================
+  Running pipeline...
+  pipeline_error present: True
+  pipeline_error value : No Anthropic API key provided.  Pass 'api_key' or set the ANTHROPIC_API_KEY environment variable.
+
+============================================================
+  Section 3 -- Health Report
+============================================================
+  missing_values................ {'training_hours': 120, 'distance_from_office': 75, 'satisfaction_score': 90, 'last_promotion_years': 150}
+  high_skew_columns............. {'salary': 3.4777}
+  scale_mismatch................ True
+  outliers...................... {'salary': 71}
+  class_imbalance............... None
+  wrong_dtypes.................. {}
+  dtypes........................ {'age': 'int64', 'years_experience': 'int64', 'hours_per_week': 'int64', 'num_projects': 'int64', 'team_size': 'int64', 'performance_score': 'float64', 'training_hours': 'float64', 'distance_from_offi...
+
+============================================================
+  Section 4 -- Fix Evaluation
+============================================================
+  task_type  : regression
+  metric     : 
+  before     : 0.0
+  after      : 0.0
+  reward     : 0.0
+  improved   : False
+  exec_error : None
+  fix_code (first 400 chars):
+    (empty)
+
+============================================================
+  Section 5 -- Feature Engineering
+============================================================
+  Total iterations : 0
+  Features kept    : 0
+  Features discarded: 0
+
+============================================================
+  Section 6 -- Correlation Filtering
+============================================================
+  n_features_before       : <missing>
+  n_features_after        : <missing>
+  dropped_low_target_corr : []
+  dropped_redundant       : []
+  kept_features           : []
+
+============================================================
+  Section 7 -- Final Dataset
+============================================================
+  Shape        : (1500, 23)
+  Columns      : ['age', 'years_experience', 'hours_per_week', 'num_projects', 'team_size', 'performance_score', 'training_hours', 'distance_from_office', 'num_reports', 'monthly_expenses', 'satisfaction_score', 'last_promotion_years', 'department', 'education', 'job_role', 'gender', 'employment_type', 'remote_work', 'overtime', 'location', 'age_copy', 'random_noise', 'salary']
+  Target present: True
+  No numeric->object regressions detected
+
+============================================================
+  Section 8 -- Critical Checks
+============================================================
+  [X] FAIL: No pipeline_error in result
+  [+] PASS: exec_error is None
+  [+] PASS: task_type == 'regression'
+  [+] PASS: reward >= 0.0
+  [+] PASS: improved is bool (not None)
+  [X] FAIL: age_copy OR age in dropped_redundant
+  [X] FAIL: random_noise in dropped_low_target_corr
+  [+] PASS: target col present in final_df
+  [X] FAIL: final_df has fewer columns than original
+  [+] PASS: feature_log is a list
+
+  Summary: 6/10 checks passed
+
+  RESULT: FAILED -- some critical checks did not pass
