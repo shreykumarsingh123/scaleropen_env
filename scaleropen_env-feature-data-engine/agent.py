@@ -211,7 +211,8 @@ class DataDebuggerAgent:
 
     @staticmethod
     def _build_generic_context(obs: dict) -> str:
-        health = json.loads(obs["state"])
+        raw = obs["state"]
+        health = raw if isinstance(raw, dict) else json.loads(raw)
         meta   = obs.get("meta", {})
         target = meta.get("target_col", "target")
 
@@ -284,7 +285,8 @@ class DataDebuggerAgent:
         )
 
     def _build_prompt(self, obs: dict, context: str, tune_hint: str = "") -> str:
-        state     = json.loads(obs["state"])
+        raw       = obs["state"]
+        state     = raw if isinstance(raw, dict) else json.loads(raw)
         meta      = obs.get("meta", {})
         state_str = json.dumps(state, indent=2)
         meta_lines = "\n".join(
@@ -295,8 +297,10 @@ class DataDebuggerAgent:
             f"\n\nOPTUNA HINT (suggested hyperparameters):\n{tune_hint}\n"
             if tune_hint else ""
         )
+        # NOTE: _SYSTEM_PROMPT is sent as the dedicated `system` field by each
+        # LLM caller (_call_openai / _call_gemini / _call_claude). Do NOT
+        # prepend it here — that would inject it twice into OpenAI calls.
         return (
-            f"{_SYSTEM_PROMPT}\n\n"
             f"{'=' * 55}\n"
             f"{context}\n\n"
             f"DATA HEALTH JSON:\n"
@@ -499,6 +503,7 @@ def run_all_tasks(
     max_steps:     int = 3,
     use_tuner:     bool = False,
     n_tune_trials: int = 40,
+    temperature:   float = 0.2,
     verbose:       bool = True,
 ) -> dict[str, AgentResult]:
     results = {}
@@ -511,6 +516,7 @@ def run_all_tasks(
             max_steps=max_steps,
             use_tuner=use_tuner,
             n_tune_trials=n_tune_trials,
+            temperature=temperature,
             verbose=verbose,
         )
 
@@ -562,6 +568,7 @@ if __name__ == "__main__":
                 max_steps=args.max_steps,
                 use_tuner=args.use_tuner,
                 n_tune_trials=args.tune_trials,
+                temperature=args.temperature,
                 verbose=verbose,
             )
         else:
