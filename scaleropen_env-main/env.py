@@ -103,21 +103,34 @@ def _generate_attrition_data(cfg: AttritionTaskConfig) -> tuple[pd.DataFrame, di
 
 def _generate_skewed_data(cfg: SkewedTaskConfig) -> tuple[pd.DataFrame, dict]:
     """
-    Regression dataset where the target follows a log-normal distribution
-    (heavy right skew). Features are gaussian with added noise.
+    Regression dataset with a log-normal target that is correlated with X.
+
+    Generation:
+        X        ~ N(0, 1)
+        weights  ~ N(0, 1), normalised to unit length
+        y_log    = skew_param * (X @ weights) + noise   (scaled linear signal)
+        y        = exp(y_log)   → log-normal, heavy right skew
+
+    With skew_param=3, E[y]≈90 and std(y)≈8000, so raw LinearRegression
+    on y produces huge RMSE.  The agent's log1p + expm1 fix reduces RMSE
+    far below the 50 % threshold.
     """
     rng = np.random.RandomState(cfg.random_state)
     n = cfg.n_samples
 
-    X = rng.randn(n, cfg.n_features) + rng.randn(n, cfg.n_features) * cfg.noise_level
-    # Log-normal target: exp(sigma * Z) where sigma = skew_param
-    y = np.exp(cfg.skew_param * rng.randn(n))
+    X = rng.randn(n, cfg.n_features)
+    # Normalised weights make the log-scale signal stable across runs
+    weights = rng.randn(cfg.n_features)
+    weights = weights / (np.linalg.norm(weights) + 1e-8)
+    # Scale by skew_param: exp(3*z) creates the heavy right-skew needed
+    y_log = cfg.skew_param * (X @ weights) + rng.randn(n) * cfg.noise_level
+    y = np.exp(y_log)
 
     cols = [f"feature_{i}" for i in range(cfg.n_features)]
     df = pd.DataFrame(X, columns=cols)
     df["target"] = y
 
-    # Compute baseline RMSE on raw (unlogged) target
+    # Baseline: LinearRegression on raw (un-transformed) target
     X_split = df.drop(columns=["target"])
     y_split = df["target"]
     X_train, X_test, y_train, y_test = train_test_split(
@@ -125,14 +138,17 @@ def _generate_skewed_data(cfg: SkewedTaskConfig) -> tuple[pd.DataFrame, dict]:
     )
     model = LinearRegression()
     model.fit(X_train, y_train)
-    preds = model.predict(X_test)
-    baseline_rmse = float(np.sqrt(mean_squared_error(y_test, preds)))
-    rmse_threshold = baseline_rmse * cfg.rmse_improvement_factor
+    preds = np.clip(model.predict(X_test), 0, None)  # RMSLE requires non-negative
+    # Use RMSLE (log-scale error) so the metric is not dominated by extreme outliers
+    baseline_rmsle = float(np.sqrt(mean_squared_error(
+        np.log1p(y_test), np.log1p(preds)
+    )))
+    rmsle_threshold = baseline_rmsle * cfg.rmse_improvement_factor
 
     meta = {
-        "target_col": "target",
-        "baseline_rmse": baseline_rmse,
-        "rmse_threshold": rmse_threshold,
+        "target_col":     "target",
+        "baseline_rmsle": baseline_rmsle,
+        "rmsle_threshold": rmsle_threshold,
     }
     return df, meta
 
@@ -283,18 +299,18 @@ class SilentDebuggerEnv:
                 agent_code=agent_code,
                 df=self.df,
                 target_col=self.meta["target_col"],
-                baseline_rmse=self.meta["baseline_rmse"],
-                rmse_threshold=self.meta["rmse_threshold"],
+                baseline_rmsle=self.meta["baseline_rmsle"],
+                rmsle_threshold=self.meta["rmsle_threshold"],
             )
             df_after = self._try_get_fixed_df(agent_code, task)
-            # Extract new RMSE from log for the RMSE comparison chart
-            new_rmse = self._parse_rmse_from_log(log)
+            # Extract new RMSLE from log for the comparison chart
+            new_rmsle = self._parse_rmsle_from_log(log)
             figures = build_skewed_figures(
                 df_before=self.df,
                 df_after=df_after,
                 target_col=self.meta["target_col"],
-                baseline_rmse=self.meta["baseline_rmse"],
-                new_rmse=new_rmse,
+                baseline_rmse=self.meta["baseline_rmsle"],
+                new_rmse=new_rmsle,
                 reward=reward,
             )
 
@@ -374,10 +390,10 @@ class SilentDebuggerEnv:
             pass
         return None
 
-    def _parse_rmse_from_log(self, log: str) -> float | None:
-        """Extracts new RMSE value from grader log string for the chart."""
+    def _parse_rmsle_from_log(self, log: str) -> float | None:
+        """Extracts new RMSLE value from grader log string for the chart."""
         import re
-        match = re.search(r"New RMSE:\s*([\d.]+)", log)
+        match = re.search(r"New RMSLE:\s*([\d.]+)", log)
         if match:
             return float(match.group(1))
         return None

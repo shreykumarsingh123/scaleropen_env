@@ -283,13 +283,13 @@ def grade_skewed_task(
     agent_code: str,
     df: pd.DataFrame,
     target_col: str,
-    baseline_rmse: float,
-    rmse_threshold: float,
+    baseline_rmsle: float,
+    rmsle_threshold: float,
 ) -> tuple[float, str]:
     """
-    Grade the log-normal skew regression fix.
+    Grade the log-normal skew regression fix using RMSLE (scale-invariant).
 
-    Reward breakdown:  +0.4 log1p | +0.3 expm1 | +0.3 RMSE < threshold
+    Reward breakdown:  +0.4 log1p | +0.3 expm1 | +0.3 RMSLE < threshold
     """
     reward = 0.0
     log: list[str] = []
@@ -319,23 +319,28 @@ def grade_skewed_task(
         return round(min(reward, 1.0), 2), "\n".join(log)
 
     try:
-        predictions = namespace.get("predictions") or namespace.get("y_pred")
+        predictions = namespace.get("predictions")
+        if predictions is None:
+            predictions = namespace.get("y_pred")
         if predictions is None:
             log.append("❌ +0.0 No 'predictions' or 'y_pred' variable produced.")
             return round(min(reward, 1.0), 2), "\n".join(log)
 
-        rmse = float(np.sqrt(mean_squared_error(y_test, predictions)))
+        preds_safe = np.clip(np.asarray(predictions, dtype=float), 0, None)
+        rmsle = float(np.sqrt(mean_squared_error(
+            np.log1p(y_test), np.log1p(preds_safe)
+        )))
         log.append(
-            f"📊 Baseline RMSE: {baseline_rmse:.2f} | "
-            f"New RMSE: {rmse:.2f} | Threshold: {rmse_threshold:.2f}"
+            f"📊 Baseline RMSLE: {baseline_rmsle:.4f} | "
+            f"New RMSLE: {rmsle:.4f} | Threshold: {rmsle_threshold:.4f}"
         )
-        if rmse < rmse_threshold:
+        if rmsle < rmsle_threshold:
             reward += 0.3
-            log.append(f"✅ +0.3 RMSE {rmse:.2f} is below threshold {rmse_threshold:.2f}.")
+            log.append(f"✅ +0.3 RMSLE {rmsle:.4f} is below threshold {rmsle_threshold:.4f}.")
         else:
-            log.append(f"❌ +0.0 RMSE {rmse:.2f} did not beat threshold {rmse_threshold:.2f}.")
+            log.append(f"❌ +0.0 RMSLE {rmsle:.4f} did not beat threshold {rmsle_threshold:.4f}.")
     except Exception as exc:
-        log.append(f"❌ +0.0 Could not compute RMSE: {exc}")
+        log.append(f"❌ +0.0 Could not compute RMSLE: {exc}")
 
     return round(min(reward, 1.0), 2), "\n".join(log)
 
